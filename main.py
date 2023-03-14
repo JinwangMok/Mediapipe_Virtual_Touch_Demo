@@ -3,10 +3,13 @@ from logger import logger
 import argparse
 
 import cv2
+import numpy as np
 import mediapipe as mp
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--canvas_width', type=int, default=500)
+parser.add_argument('--canvas_height', type=int, default=500)
 parser.add_argument('--cam_num', type=int, default=0)
 args = parser.parse_args()
 
@@ -46,7 +49,8 @@ if __name__ == "__main__":
             if not success:
                 break
 
-            camera_frame = cv2.cvtColor(cv2.flip(camera_frame, 1), cv2.COLOR_BGR2RGB)
+            camera_frame = cv2.cvtColor(camera_frame, cv2.COLOR_BGR2RGB)
+            canvas = np.zeros((args.canvas_width, args.canvas_height, 1), np.uint8)
 
             hands_results = hands.process(camera_frame)
             face_results = face_mesh.process(camera_frame)
@@ -70,7 +74,7 @@ if __name__ == "__main__":
                         z = face_landmarks.landmark[landmark_num].z + 1.
                         landmark_data[landmark_name] = (x, y, z)
 
-            camera_frame = cv2.cvtColor(camera_frame, cv2.COLOR_RGB2BGR)
+            camera_frame = cv2.cvtColor(cv2.flip(camera_frame, 1), cv2.COLOR_RGB2BGR)
             if len(landmark_data) > 0:
                 for i, (landmark_name, coordinate) in enumerate(landmark_data.items()):
                     cv2.putText(camera_frame, f"{landmark_name}_x: {coordinate[0]:.3f}", (10, (90*(i+1))+0), cv2.FONT_HERSHEY_SIMPLEX, 1., (0, 255, 0), 3, cv2.LINE_AA)
@@ -78,6 +82,27 @@ if __name__ == "__main__":
                     cv2.putText(camera_frame, f"{landmark_name}_z: {coordinate[2]:.3f}", (10, (90*(i+1))+60), cv2.FONT_HERSHEY_SIMPLEX, 1., (0, 255, 0), 3, cv2.LINE_AA)
             cv2.imshow('MediaPipe Hands', camera_frame)
             
+            if "index_finger_tip" in landmark_data.keys():
+                left_eye_tip_x = landmark_data["left_eye_tip"][0]
+                left_eye_tip_y = landmark_data["left_eye_tip"][1]
+                left_eye_tip_z = landmark_data["left_eye_tip"][2]
+                right_eye_tip_x = landmark_data["right_eye_tip"][0]
+                right_eye_tip_y = landmark_data["right_eye_tip"][1]
+                right_eye_tip_z = landmark_data["right_eye_tip"][2]
+                
+                origin_x = (left_eye_tip_x + right_eye_tip_x)/2.
+                origin_y = (left_eye_tip_y + right_eye_tip_y)/2.
+                origin_z = (left_eye_tip_z + right_eye_tip_z)/2.
+
+                index_finger_tip_x = landmark_data["index_finger_tip"][0]
+                index_finger_tip_y = landmark_data["index_finger_tip"][1]
+                index_finger_tip_z = landmark_data["index_finger_tip"][2]
+
+                cv2.circle(canvas, (int(origin_x*args.canvas_width/2), int(origin_z*args.canvas_height/2)), 5, (255, 255, 255), -1)
+                cv2.circle(canvas, (int(index_finger_tip_x*args.canvas_width/2), int(index_finger_tip_z*args.canvas_height/2)), 5, (255, 255, 255), -1)
+            
+            cv2.imshow('Canvas', cv2.flip(canvas, 1))
+
             if cv2.waitKey(5) & 0xFF == 27:
                 break
 
